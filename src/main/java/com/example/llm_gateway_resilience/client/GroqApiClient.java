@@ -5,6 +5,8 @@ package com.example.llm_gateway_resilience.client;
 import com.example.llm_gateway_resilience.model.ChatRequest;
 import com.example.llm_gateway_resilience.model.ChatResponse;
 import com.example.llm_gateway_resilience.model.TokenUsage;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -40,6 +42,10 @@ public class GroqApiClient implements LlmClient {
     }
 
     @Override
+    // Reintenta y, si el fallo persiste, abre el circuito: ambas instancias apuntan a la
+    // config "groqApi" de application.yml (resilience4j.retry / resilience4j.circuitbreaker).
+    @Retry(name = "groqApi")
+    @CircuitBreaker(name = "groqApi", fallbackMethod = "fallbackResponse")
     public ChatResponse generateResponse(ChatRequest request) {
         long startTime = System.currentTimeMillis();
 
@@ -71,6 +77,17 @@ public class GroqApiClient implements LlmClient {
         long latency = System.currentTimeMillis() - startTime;
 
         return parseGroqResponse(responseBody, latency);
+    }
+
+    // Método de fallback: misma firma + una excepción como último parámetro, requerido por
+    // Resilience4j para invocarlo cuando el circuito está abierto o se agotan los reintentos.
+    private ChatResponse fallbackResponse(ChatRequest request, Throwable t) {
+        TokenUsage emptyUsage = new TokenUsage(0, 0, 0.0);
+        return new ChatResponse(
+                "El servicio de IA no está disponible en este momento (circuit breaker activo). Intenta de nuevo en unos segundos.",
+                0,
+                emptyUsage
+        );
     }
 
     /*

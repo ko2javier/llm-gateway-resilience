@@ -8,7 +8,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 
-@RestControllerAdvice
+// Restringido al paquete de controllers propios: sin esto, @RestControllerAdvice aplica
+// globalmente y también intercepta las excepciones internas de los endpoints de Actuator
+// (p.ej. /actuator/circuitbreakers/{name} con un nombre inexistente), devolviendo un 500
+// genérico en vez del error propio de Actuator.
+@RestControllerAdvice(basePackages = "com.example.llm_gateway_resilience.controller")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpClientErrorException.class)

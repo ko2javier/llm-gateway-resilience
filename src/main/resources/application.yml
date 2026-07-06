@@ -1,5 +1,38 @@
+server:
+  port: ${SERVER_PORT:8085}
+
 groq:
   api:
     key: ${GROQ_API_KEY}
     base-url: https://api.groq.com/openai/v1
     model: llama-3.3-70b-versatile
+
+resilience4j:
+  retry:
+    instances:
+      groqApi:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.net.SocketTimeoutException
+
+  circuitbreaker:
+    instances:
+      groqApi:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, circuitbreakers, circuitbreakerevents, metrics, prometheus
+  endpoint:
+    health:
+      show-details: always
+  
