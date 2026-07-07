@@ -37,7 +37,7 @@ class LlmGatewayControllerTest {
                         .content(objectMapper.writeValueAsString(requestVacio)))
                 .andExpect(status().isBadRequest());
 
-        verify(orchestratorService, never()).processRequest(any(), any());
+        verify(orchestratorService, never()).processRequest(any());
     }
 
     @Test

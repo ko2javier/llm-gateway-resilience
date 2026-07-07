@@ -36,7 +36,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(errorResponse);
     }
 
-    @ExceptionHandler({NullPointerException.class, ClassCastException.class})
+    @ExceptionHandler({IllegalStateException.class, NullPointerException.class, ClassCastException.class})
     public ResponseEntity<ErrorResponse> handleParsingError(RuntimeException ex) {
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.BAD_GATEWAY.value(),
