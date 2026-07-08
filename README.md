@@ -2,6 +2,8 @@
 
 API gateway for LLM providers built with Spring Boot 3 and Java 21. Wraps the Groq API with production-grade resilience patterns and a full observability stack.
 
+**Live demo:** [llm.ko2-oreilly.com](https://llm.ko2-oreilly.com) · **Swagger:** [llm.ko2-oreilly.com/swagger-ui](https://llm.ko2-oreilly.com/swagger-ui/index.html)
+
 ## What it does
 
 Exposes a single chat endpoint that forwards requests to Groq's LLM API, protected by automatic retry and circuit breaker logic. If Groq is down or rate-limiting, the gateway degrades gracefully instead of cascading failures to the client.
@@ -16,6 +18,8 @@ Exposes a single chat endpoint that forwards requests to Groq's LLM API, protect
 | Observability | Micrometer → Prometheus → Grafana |
 | API docs | Springdoc / Swagger UI |
 | LLM provider | Groq (`llama-3.3-70b-versatile`) |
+| Deploy | Docker · Hetzner VPS · GitHub Actions CI/CD |
+| SSL / Proxy | Cloudflare (Full) + Nginx |
 
 ## Architecture
 
