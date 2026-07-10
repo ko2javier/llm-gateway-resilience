@@ -4,6 +4,7 @@ spring:
 
 server:
   port: ${SERVER_PORT:8085}
+  forward-headers-strategy: framework
 
 groq:
   api:
