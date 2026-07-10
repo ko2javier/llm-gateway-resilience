@@ -8,6 +8,8 @@ API gateway for LLM providers built with Spring Boot 3 and Java 21. Wraps the Gr
 
 Exposes a single chat endpoint that forwards requests to Groq's LLM API, protected by automatic retry and circuit breaker logic. If Groq is down or rate-limiting, the gateway degrades gracefully instead of cascading failures to the client.
 
+The model can also invoke a `get_current_weather` function tool (backed by the free [Open-Meteo](https://open-meteo.com) API) — if the prompt needs live weather data, Groq requests the tool call, the gateway resolves it, and feeds the result back for a final answer. The weather tool has its own independent retry/circuit-breaker instance, so a flaky weather API degrades to an apologetic answer instead of a 500.
+
 ## Tech stack
 
 | Layer | Technology |
@@ -18,6 +20,7 @@ Exposes a single chat endpoint that forwards requests to Groq's LLM API, protect
 | Observability | Micrometer → Prometheus → Grafana |
 | API docs | Springdoc / Swagger UI |
 | LLM provider | Groq (`llama-3.3-70b-versatile`) |
+| Weather tool | Open-Meteo (free, no API key) |
 | Deploy | Docker · Hetzner VPS · GitHub Actions CI/CD |
 | SSL / Proxy | Cloudflare (Full) + Nginx |
 
@@ -28,10 +31,15 @@ Client
   └── POST /api/v1/llm/chat
         └── LlmGatewayController
               └── LlmOrchestratorService
-                    └── GroqApiClient
-                          ├── @Retry       — up to 3 attempts on 5xx / timeout
-                          └── @CircuitBreaker — opens after 50% failure rate (min 5 calls)
-                                └── fallback — returns graceful error message
+                    ├── GroqApiClient.callChatCompletion()      — 1st call, with tool definitions
+                    │     ├── @Retry       — up to 3 attempts on 5xx / timeout
+                    │     └── @CircuitBreaker (groqApi) — opens after 50% failure rate (min 5 calls)
+                    │           └── fallback — returns graceful error message
+                    ├── WeatherToolService.getCurrentWeather()  — only if Groq requested the tool
+                    │     ├── @Retry       — up to 3 attempts on 5xx / timeout
+                    │     └── @CircuitBreaker (weatherApi) — independent from groqApi
+                    │           └── fallback — tool error fed back to the model, not a 500
+                    └── GroqApiClient.callChatCompletion()      — 2nd call, with the tool result
 ```
 
 **Resilience behavior:**
@@ -93,11 +101,32 @@ curl -X POST http://localhost:8085/api/v1/llm/chat \
 {
   "text": "A circuit breaker is...",
   "latencyMs": 843,
-  "tokenUsage": {
-    "promptTokens": 18,
-    "completionTokens": 47,
-    "cost": 0.0
-  }
+  "usage": {
+    "inputTokens": 18,
+    "outputTokens": 47,
+    "estimatedCost": 0.0,
+    "totalTokens": 65
+  },
+  "toolUsed": null
+}
+```
+
+### Function tool calling (weather)
+
+If the prompt needs live weather data, the model calls `get_current_weather` internally — no change to the request shape, just look at `toolUsed` in the response:
+
+```bash
+curl -X POST http://localhost:8085/api/v1/llm/chat \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "What is the weather like in Madrid right now?", "maxTokens": 200}'
+```
+
+```json
+{
+  "text": "It's currently 25°C and clear skies in Madrid...",
+  "latencyMs": 1204,
+  "usage": { "inputTokens": 143, "outputTokens": 32, "estimatedCost": 0.0, "totalTokens": 175 },
+  "toolUsed": "get_current_weather"
 }
 ```
 
@@ -114,3 +143,4 @@ JVM metrics, HTTP request rates, error rates, and circuit breaker state are expo
 | Retry attempts | 3 | `resilience4j.retry.instances.groqApi.max-attempts` |
 | CB failure threshold | 50% | `resilience4j.circuitbreaker.instances.groqApi.failure-rate-threshold` |
 | CB window size | 10 calls | `resilience4j.circuitbreaker.instances.groqApi.sliding-window-size` |
+| Weather tool retry/CB | same defaults, separate instance | `resilience4j.*.instances.weatherApi.*` |

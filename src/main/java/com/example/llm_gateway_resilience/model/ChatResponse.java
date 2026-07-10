@@ -5,14 +5,20 @@ public class ChatResponse {
     private String text;
     private long latencyMs;
     private TokenUsage usage;
+    private String toolUsed;
 
     public ChatResponse() {
     }
 
     public ChatResponse(String text, long latencyMs, TokenUsage usage) {
+        this(text, latencyMs, usage, null);
+    }
+
+    public ChatResponse(String text, long latencyMs, TokenUsage usage, String toolUsed) {
         this.text = text;
         this.latencyMs = latencyMs;
         this.usage = usage;
+        this.toolUsed = toolUsed;
     }
 
     public String getText() {
@@ -37,5 +43,13 @@ public class ChatResponse {
 
     public void setUsage(TokenUsage usage) {
         this.usage = usage;
+    }
+
+    public String getToolUsed() {
+        return toolUsed;
+    }
+
+    public void setToolUsed(String toolUsed) {
+        this.toolUsed = toolUsed;
     }
 }

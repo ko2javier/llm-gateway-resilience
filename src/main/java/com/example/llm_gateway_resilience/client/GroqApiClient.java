@@ -1,9 +1,5 @@
 package com.example.llm_gateway_resilience.client;
 
-import com.example.llm_gateway_resilience.model.ChatRequest;
-import com.example.llm_gateway_resilience.model.ChatResponse;
-import com.example.llm_gateway_resilience.model.TokenUsage;
-
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,6 +7,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -33,16 +31,15 @@ public class GroqApiClient {
     }
 
     @Retry(name = "groqApi")
-    @CircuitBreaker(name = "groqApi", fallbackMethod = "fallbackResponse")
-    public ChatResponse generateResponse(ChatRequest request) {
-        long startTime = System.currentTimeMillis();
-        Integer maxTokens = request.getMaxTokens() != null ? request.getMaxTokens() : 256;
-
-        Map<String, Object> body = Map.of(
-                "model", model,
-                "messages", List.of(Map.of("role", "user", "content", request.getPrompt())),
-                "max_tokens", maxTokens
-        );
+    @CircuitBreaker(name = "groqApi", fallbackMethod = "fallbackCompletion")
+    public GroqCompletionResult callChatCompletion(List<Map<String, Object>> messages, List<Map<String, Object>> tools, int maxTokens) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", model);
+        body.put("messages", messages);
+        body.put("max_tokens", maxTokens);
+        if (tools != null && !tools.isEmpty()) {
+            body.put("tools", tools);
+        }
 
         Map<String, Object> responseBody = restClient.post()
                 .uri(baseUrl + "/chat/completions")
@@ -52,19 +49,21 @@ public class GroqApiClient {
                 .retrieve()
                 .body(Map.class);
 
-        return parseGroqResponse(responseBody, System.currentTimeMillis() - startTime);
+        return parseGroqResponse(responseBody);
     }
 
-    private ChatResponse fallbackResponse(ChatRequest request, Throwable t) {
-        return new ChatResponse(
+    private GroqCompletionResult fallbackCompletion(List<Map<String, Object>> messages, List<Map<String, Object>> tools, int maxTokens, Throwable t) {
+        return new GroqCompletionResult(
                 "El servicio de IA no está disponible en este momento. Intenta de nuevo en unos segundos.",
+                List.of(),
+                null,
                 0,
-                new TokenUsage(0, 0, 0.0)
+                0
         );
     }
 
     @SuppressWarnings("unchecked")
-    private ChatResponse parseGroqResponse(Map<String, Object> responseBody, long latency) {
+    private GroqCompletionResult parseGroqResponse(Map<String, Object> responseBody) {
         if (responseBody == null) {
             throw new IllegalStateException("Respuesta vacía de Groq");
         }
@@ -84,10 +83,33 @@ public class GroqApiClient {
         int promptTokens = usageData != null ? (int) usageData.get("prompt_tokens") : 0;
         int completionTokens = usageData != null ? (int) usageData.get("completion_tokens") : 0;
 
-        return new ChatResponse(
+        List<GroqToolCall> toolCalls = parseToolCalls(message);
+
+        return new GroqCompletionResult(
                 (String) message.get("content"),
-                latency,
-                new TokenUsage(promptTokens, completionTokens, 0.0)
+                toolCalls,
+                message,
+                promptTokens,
+                completionTokens
         );
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<GroqToolCall> parseToolCalls(Map<String, Object> message) {
+        List<Map<String, Object>> rawToolCalls = (List<Map<String, Object>>) message.get("tool_calls");
+        if (rawToolCalls == null) {
+            return List.of();
+        }
+
+        List<GroqToolCall> toolCalls = new ArrayList<>();
+        for (Map<String, Object> raw : rawToolCalls) {
+            Map<String, Object> function = (Map<String, Object>) raw.get("function");
+            toolCalls.add(new GroqToolCall(
+                    (String) raw.get("id"),
+                    (String) function.get("name"),
+                    (String) function.get("arguments")
+            ));
+        }
+        return toolCalls;
     }
 }
