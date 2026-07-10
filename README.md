@@ -132,7 +132,15 @@ curl -X POST http://localhost:8085/api/v1/llm/chat \
 
 ## Observability
 
-JVM metrics, HTTP request rates, error rates, and circuit breaker state are exposed via `/actuator/prometheus` and visualized in Grafana (dashboard [11378](https://grafana.com/grafana/dashboards/11378)).
+JVM metrics, HTTP request rates, error rates, circuit breaker state, and retry outcomes are exposed via `/actuator/prometheus`.
+
+**In production**, this app doesn't run its own Prometheus/Grafana — it's scraped by the shared observability stack of a sibling ecosystem (KO2 Platform, same Hetzner VPS), with a dedicated dashboard:
+
+**Live dashboard:** [api.ko2-oreilly.com/grafana](https://api.ko2-oreilly.com/grafana/) → *LLM Gateway Resilience*
+
+Panels: circuit breaker open/closed state (per instance: `groqApi`, `weatherApi`), retry outcomes, HTTP request rate, average latency, JVM heap/threads.
+
+**Locally**, the bundled `docker-compose.yml` (Prometheus on `:9091`, Grafana on `:3001`) is available for standalone demoing without depending on the shared stack — see [Running locally](#running-locally).
 
 ## Configuration
 
