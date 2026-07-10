@@ -136,7 +136,7 @@ JVM metrics, HTTP request rates, error rates, circuit breaker state, and retry o
 
 **In production**, this app doesn't run its own Prometheus/Grafana — it's scraped by the shared observability stack of a sibling ecosystem (KO2 Platform, same Hetzner VPS), with a dedicated dashboard:
 
-**Live dashboard:** [api.ko2-oreilly.com/grafana](https://api.ko2-oreilly.com/grafana/) → *LLM Gateway Resilience*
+**Live dashboard:** [api.ko2-oreilly.com/grafana](https://api.ko2-oreilly.com/grafana/) → *LLM Gateway Resilience* (login: `user` / `user123`)
 
 Panels: circuit breaker open/closed state (per instance: `groqApi`, `weatherApi`), retry outcomes, HTTP request rate, average latency, JVM heap/threads.
 
