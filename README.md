@@ -130,6 +130,23 @@ curl -X POST http://localhost:8085/api/v1/llm/chat \
 }
 ```
 
+### GET /api/v1/status
+
+Lightweight resilience snapshot for building live dashboards/frontends — flattens the state of both circuit breaker instances (`groqApi`, `weatherApi`) plus retry counters into a single JSON response, no Actuator parsing required.
+
+```bash
+curl http://localhost:8085/api/v1/status
+```
+
+```json
+{
+  "groqApi":    { "state": "CLOSED", "failedCalls": 0, "bufferedCalls": 3, "retryAttempts": 0 },
+  "weatherApi": { "state": "CLOSED", "failedCalls": 0, "bufferedCalls": 1, "retryAttempts": 0 }
+}
+```
+
+`state` is one of `CLOSED`, `OPEN`, `HALF_OPEN`. Open CORS is enabled on `/api/v1/**` (any origin, `GET`/`POST`) so this — and `/api/v1/llm/chat` — can be called directly from a browser-based frontend without a proxy.
+
 ## Observability
 
 JVM metrics, HTTP request rates, error rates, circuit breaker state, and retry outcomes are exposed via `/actuator/prometheus`.
@@ -152,3 +169,4 @@ Panels: circuit breaker open/closed state (per instance: `groqApi`, `weatherApi`
 | CB failure threshold | 50% | `resilience4j.circuitbreaker.instances.groqApi.failure-rate-threshold` |
 | CB window size | 10 calls | `resilience4j.circuitbreaker.instances.groqApi.sliding-window-size` |
 | Weather tool retry/CB | same defaults, separate instance | `resilience4j.*.instances.weatherApi.*` |
+| CORS | open (`*`) on `/api/v1/**` | `WebConfig` — portfolio project, not locked down on purpose |
