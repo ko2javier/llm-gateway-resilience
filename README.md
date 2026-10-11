@@ -19,7 +19,7 @@ The model can also invoke a `get_current_weather` function tool (backed by the f
 | HTTP client | Spring `RestClient` |
 | Observability | Micrometer → Prometheus → Grafana |
 | API docs | Springdoc / Swagger UI |
-| LLM provider | Groq (`llama-3.3-70b-versatile`) |
+| LLM provider | Groq (`openai/gpt-oss-120b`, overridable with `GROQ_API_MODEL`) |
 | Weather tool | Open-Meteo (free, no API key) |
 | Deploy | Docker · Hetzner VPS · GitHub Actions CI/CD |
 | SSL / Proxy | Cloudflare (Full) + Nginx |

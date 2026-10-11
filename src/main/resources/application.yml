@@ -10,7 +10,14 @@ groq:
   api:
     key: ${GROQ_API_KEY}
     base-url: https://api.groq.com/openai/v1
-    model: llama-3.3-70b-versatile
+    # Groq retired llama-3.3-70b-versatile: since then every call answered
+    # 404 model_not_found, the circuit breaker opened and the chat only
+    # returned the fallback (seen on 2026-10-11). gpt-oss-120b was tested
+    # end to end with this same image, weather tool included.
+    # Groq retires models every few months. This value can be overridden
+    # without rebuilding by setting GROQ_API_MODEL on the container (Spring
+    # relaxed binding; checked with a temporary container on the VPS).
+    model: openai/gpt-oss-120b
 
 resilience4j:
   retry:
