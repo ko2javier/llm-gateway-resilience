@@ -3,6 +3,7 @@ name: Build and Deploy
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 env:
   IMAGE: ghcr.io/ko2javier/llm-gateway-resilience:latest
@@ -54,6 +55,8 @@ jobs:
             docker run -d \
               --name llm-gateway \
               --restart unless-stopped \
-              -p 8085:8085 \
-              --env-file /opt/llm-gateway/.env \
+              -p 127.0.0.1:8085:8085 \
+              --env-file /root/llm-gateway.env \
               ghcr.io/ko2javier/llm-gateway-resilience:latest
+            # Prometheus lo scrapea por nombre (llm-gateway:8085) dentro de la red de compose
+            docker network connect portfolio-backend_default llm-gateway
